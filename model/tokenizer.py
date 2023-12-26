@@ -24,4 +24,5 @@ class ConvolutionalTokenizer:
         x = x.relu()
         x = x.max_pool2d(self.pooling_kernel_size, self.pooling_stride)
         x = x.flatten(-2)
+        x = x.transpose(-2, -1)
         return x
