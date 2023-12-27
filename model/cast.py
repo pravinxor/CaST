@@ -12,25 +12,30 @@ class CaSTModel:
         n_classes: int,
         in_channels: int,
         embed_dim: int = 768,
-        patch_size: int = 7,
+        kernel_size: int = 7,
+        kernel_stride: (int, int) = 2,
+        padding: int = 2,
         pooling_kernel_size: int = 3,
+        pooling_stride: int = 2,
         n_encoders: int = 14,
         n_attn_heads: int = 6,
-        encoder_ff_inner: int = 2048,
+        mlp_ratio: float = 4.0,
         p_dropout: float = 0.1,
     ):
+        self.n_classes = n_classes
         self.tokenizer = ConvolutionalTokenizer(
             in_channels,
             embed_dim,
-            patch_size,
-            patch_size // 2 + 1,
-            patch_size // 2,
+            kernel_size,
+            kernel_stride,
+            padding,
             pooling_kernel_size,
-            pooling_kernel_size // 2,
+            pooling_stride,
         )
+        encoder_ff_dim = int(embed_dim * mlp_ratio)
         self.encoders = [
-            Encoder(embed_dim, n_attn_heads, n_attn_heads, p_dropout)
-            for _ in range(n_classes)
+            Encoder(embed_dim, n_attn_heads, encoder_ff_dim, p_dropout)
+            for _ in range(n_encoders)
         ]
         self.seqpool = SeqPool(embed_dim)
         self.out = nn.Linear(embed_dim, n_classes)
@@ -42,4 +47,5 @@ class CaSTModel:
 
         x = self.seqpool(x)
         x = self.out(x)
+        x = x.reshape(-1, self.n_classes)
         return x
