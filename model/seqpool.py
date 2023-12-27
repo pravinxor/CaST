@@ -12,6 +12,4 @@ class SeqPool:
         z = x_prime @ x
         z = z.squeeze(-2)
 
-        print(z.shape)
-
         return z
