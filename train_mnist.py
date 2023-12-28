@@ -39,16 +39,14 @@ model = CaSTModel(
 )
 
 params = get_parameters(model)
-optim = AdamW(params, lr=1e-3, b1=0.9, b2=0.999)
+optim = AdamW(params)
 
-batch_size = 64
-epochs = 300
-
-loader = DataLoader(train, collate_fn=mnist_collate_images)
+epochs = 10
+train_loader = DataLoader(train, collate_fn=mnist_collate_images)
 for epoch in range(epochs):
     total_correct = 0
     total_samples = 0
-    trainloop = tqdm(loader)
+    trainloop = tqdm(train_loader)
     for images, labels in trainloop:
         X, Y = images, labels
 
@@ -67,3 +65,21 @@ for epoch in range(epochs):
         trainloop.set_description_str(
             f"Correct: {total_correct}/{total_samples} Epoch {epoch + 1}, Loss: {loss.numpy()}"
         )
+
+test_loader = DataLoader(test, collate_fn=mnist_collate_images)
+total_correct = 0
+total_samples = 0
+testloop = tqdm(test_loader)
+for images, labels in testloop:
+    X, Y = images, labels
+
+    y = model(X)
+    predicted_labels = y.argmax(axis=1).numpy()
+    for pred, gt in zip(predicted_labels, Y.numpy()):
+        if pred == gt:
+            total_correct += 1
+        total_samples += 1
+
+    testloop.set_description_str(
+        f"Correct: {total_correct}/{total_samples}"
+    )
