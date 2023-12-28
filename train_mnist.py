@@ -20,7 +20,7 @@ def mnist_collate_images(batch):
 
 
 ds = load_dataset("fashion_mnist")
-train = ds["test"]
+train = ds["train"]
 test = ds["test"]
 
 n_classes = 10
@@ -65,5 +65,5 @@ for epoch in range(epochs):
         total_samples += Y.shape[0]
 
         trainloop.set_description_str(
-            f"Correct: {total_correct}/{total_samples} Epoch {epoch}, Loss: {loss.numpy()}"
+            f"Correct: {total_correct}/{total_samples} Epoch {epoch + 1}, Loss: {loss.numpy()}"
         )
