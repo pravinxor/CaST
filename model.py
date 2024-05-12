@@ -59,17 +59,14 @@ class CaSTModel:
                 x = self.output(x)
                 return x
 
-        def __init__(
-            self, embed_dim: int, n_heads: int, ff_inner: int, p_dropout: float
-        ):
-            self.p_dropout = p_dropout
+        def __init__(self, embed_dim: int, n_heads: int, ff_inner: int):
             self.attn = self.MultiHeadAttention(embed_dim, n_heads)
             self.ff = self.FeedForward(embed_dim, ff_inner)
 
         def __call__(self, x: Tensor) -> Tensor:
             x = Tensor.layernorm(self.attn(x) + x)
             x = Tensor.layernorm(self.ff(x) + x)
-            return x.dropout(self.p_dropout)
+            return x
 
     class SeqPool:
         def __init__(self, embed_dim: int):
@@ -105,7 +102,7 @@ class CaSTModel:
 
         encoder_ff_dim = int(embed_dim * mlp_ratio)
         self.encoders = [
-            self.Encoder(embed_dim, n_attn_heads, encoder_ff_dim, p_dropout)
+            self.Encoder(embed_dim, n_attn_heads, encoder_ff_dim)
             for _ in range(n_encoders)
         ]
 
