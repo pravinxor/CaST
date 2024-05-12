@@ -13,10 +13,7 @@ class CaSTModel:
         in_channels: int,
         embed_dim: int = 768,
         kernel_size: int = 7,
-        kernel_stride: (int, int) = 2,
-        padding: int = 2,
-        pooling_kernel_size: int = 3,
-        pooling_stride: int = 2,
+        kernel_stride: int = 2,
         n_encoders: int = 14,
         n_attn_heads: int = 6,
         mlp_ratio: float = 4.0,
@@ -28,9 +25,6 @@ class CaSTModel:
             embed_dim,
             kernel_size,
             kernel_stride,
-            padding,
-            pooling_kernel_size,
-            pooling_stride,
         )
         encoder_ff_dim = int(embed_dim * mlp_ratio)
         self.encoders = [

@@ -31,9 +31,6 @@ model = CaSTModel(
     embed_dim=128,
     kernel_size=3,
     kernel_stride=1,
-    padding=1,
-    pooling_kernel_size=2,
-    pooling_stride=1,
     n_encoders=2,
     n_attn_heads=2,
 )
