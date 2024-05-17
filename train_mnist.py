@@ -1,82 +1,85 @@
 from datasets import load_dataset
-from model.cast import CaSTModel
+from tinygrad import TinyJit
+from model import CaSTModel
 from dataloader import DataLoader
 
 from tinygrad.nn.optim import AdamW
 from tinygrad.nn.state import get_parameters
 from tinygrad.tensor import Tensor
+from tinygrad.helpers import Context
 
 from tqdm import tqdm
 
 
 def mnist_collate_images(batch):
-    images = list(map(lambda p: p["image"], batch))
-    images = Tensor(images) / 255
-    images = images.reshape(-1, 1, 28, 28)
-
-    labels = list(map(lambda s: s["label"], batch))
-    labels = Tensor(labels)
-    return images, labels
+    return (
+        Tensor(list(map(lambda p: p["image"], batch))).unsqueeze(1) / 255,
+        Tensor(list(map(lambda s: s["label"], batch))),
+    )
 
 
-ds = load_dataset("fashion_mnist")
-train = ds["train"]
-test = ds["test"]
-
-n_classes = 10
-n_channels = 1
-model = CaSTModel(
-    n_classes,
-    n_channels,
-    embed_dim=128,
-    kernel_size=3,
-    kernel_stride=1,
-    n_encoders=2,
-    n_attn_heads=2,
-)
-
-params = get_parameters(model)
-optim = AdamW(params)
-
-epochs = 10
-train_loader = DataLoader(train, collate_fn=mnist_collate_images)
-for epoch in range(epochs):
-    total_correct = 0
-    total_samples = 0
-    trainloop = tqdm(train_loader)
-    for images, labels in trainloop:
-        X, Y = images, labels
-
+@TinyJit
+def step(x: Tensor, y: Tensor, model, optim) -> tuple[Tensor, Tensor]:
+    with Tensor.train():
+        yh = model(x)
+        loss = yh.sparse_categorical_crossentropy(y).mean()
         optim.zero_grad()
-        y = model(X)
-        loss = y.sparse_categorical_crossentropy(Y).mean()
         loss.backward()
         optim.step()
 
-        predicted_labels = y.argmax(axis=1).numpy()
-        for pred, gt in zip(predicted_labels, Y.numpy()):
-            if pred == gt:
-                total_correct += 1
-        total_samples += Y.shape[0]
+        return yh, loss
 
-        trainloop.set_description_str(
-            f"Correct: {total_correct}/{total_samples} Epoch {epoch + 1}, Loss: {loss.numpy()}"
-        )
 
-test_loader = DataLoader(test, collate_fn=mnist_collate_images)
-total_correct = 0
-total_samples = 0
-testloop = tqdm(test_loader)
-for images, labels in testloop:
-    X, Y = images, labels
+def eval(yh: Tensor, y: Tensor) -> float:
+    with Tensor.train(False):
+        acc = (yh.argmax(-1) == y).sum().item()
+        return acc / y.shape[0]
 
-    y = model(X)
-    predicted_labels = y.argmax(axis=1).numpy()
-    for pred, gt in zip(predicted_labels, Y.numpy()):
-        if pred == gt:
-            total_correct += 1
-        total_samples += 1
 
-    testloop.set_description_str(
-        f"Correct: {total_correct}/{total_samples}"
+def train(train_loader, batch_size, epochs, model, optim):
+    for epoch in range(epochs):
+        trainloop = tqdm(train_loader)
+        run = 0
+        for x, y in trainloop:
+            if x.shape[0] != batch_size:
+                continue
+
+            yh, loss = step(x, y, model, optim)
+
+            if run % 25 == 0:
+                acc = eval(yh, y)
+                trainloop.set_description_str(f"Accuracy: {acc * 100:.2f}%")
+
+            run += 1
+
+
+if __name__ == "__main__":
+    trainset = load_dataset("mnist", split="train")
+
+    n_classes = 10
+    n_channels = 1
+    model = CaSTModel(
+        n_classes,
+        n_channels,
+        embed_dim=768,
+        kernel_size=3,
+        kernel_stride=2,
+        n_encoders=3,
+        n_attn_heads=4,
+        mlp_ratio=4.0,
+        p_dropout=0.1,
     )
+
+    params = get_parameters(model)
+    print(f"Total params: {sum(map(lambda p: p.flatten().shape[0], params))}")
+
+    optim = AdamW(params)
+
+    epochs = 10
+    batch_size = 512
+
+    train_loader = DataLoader(
+        trainset, collate_fn=mnist_collate_images, batch_size=batch_size
+    )
+
+    train(train_loader, batch_size, epochs, model, optim)
